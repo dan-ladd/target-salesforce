@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "target-salesforce"
+version = "0.0.1"
+description = "`target-salesforce` is a Singer target for Salesforce, built with the Meltano SDK for Singer Targets."
+authors = ["Dan Ladd"]
+keywords = [
+    "ELT",
+    "Salesforce",
+]
+license = "Apache 2.0"
+
+[tool.poetry.dependencies]
+python = "<3.11,>=3.7.1"
+requests = "^2.28.1"
+singer-sdk = "^0.13.0"
+simple-salesforce = "^1.12.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+tox = "^3.24.4"
+flake8 = "^5.0.4"
+black = "^22.10.0"
+pydocstyle = "^6.1.1"
+mypy = "^0.910"
+types-requests = "^2.26.1"
+isort = "^5.10.1"
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3 # Vertical Hanging Indent
+src_paths = "target_salesforce"
+
+[build-system]
+requires = ["poetry-core>=1.0.8"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+# CLI declaration
+target-salesforce = 'target_salesforce.target:TargetSalesforce.cli'

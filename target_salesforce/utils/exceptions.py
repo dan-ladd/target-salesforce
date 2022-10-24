@@ -1,0 +1,2 @@
+class InvalidSalesforceAction(Exception):
+    pass

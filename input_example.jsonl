@@ -1,0 +1,2 @@
+{"type": "SCHEMA", "stream": "Account", "schema": {"type": "object", "properties": {"Id": {"type": "string"}, "Name": {"type": ["string", "null"]}, "_sdc_action": {"type": ["string", "null"]}}}}
+{"type": "RECORD", "stream": "Account", "record": {"Name": "target-salesforce Test Account", "_sdc_action": "insert"}}

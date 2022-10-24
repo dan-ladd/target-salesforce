@@ -1,0 +1,38 @@
+version: 1
+send_anonymous_usage_stats: true
+project_id: target-salesforce
+plugins:
+  loaders:
+  - name: target-salesforce
+    namespace: target_salesforce
+    pip_url: -e .
+    capabilities:
+    - batch
+    settings:
+      - name: client_id
+        kind: string
+        description: OAuth client_id
+      - name: client_secret
+        kind: string
+        description: OAuth client_secret
+      - name: refresh_token
+        kind: string
+        description: OAuth refresh_token
+      - name: username
+        kind: string
+        description: User/password username
+      - name: password
+        kind: string
+        description: User/password password
+      - name: security_token
+        kind: string
+        description: User/password generated security token. Reset under your Account Settings.
+      - name: security_token
+        kind: string
+        description: User/password generated security token. Reset under your Account Settings.
+      - name: is_sandbox
+        kind: boolean
+        description: Is the Salesforce instance a sandbox?
+      - name: default_action
+        kind: boolean
+        description: How to handle incomming records by default. Will be overriden if `_sdc_action` is included in the record.
