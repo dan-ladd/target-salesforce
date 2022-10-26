@@ -1,32 +1,27 @@
 """Salesforce target sink class, which handles writing streams."""
 
-from cmath import log
+import json
 from typing import Dict, List, Optional
-from dataclasses import asdict, dataclass, field, fields
-from typing_extensions import Self
+from dataclasses import asdict
 
 
 from singer_sdk.sinks import BatchSink
 from simple_salesforce import Salesforce, bulk, exceptions
 from target_salesforce.session_credentials import parse_credentials, SalesforceAuth
-from target_salesforce.utils.exceptions import InvalidSalesforceAction
+from target_salesforce.utils.exceptions import InvalidStreamSchema
 from singer_sdk.plugin_base import PluginBase
+from target_salesforce.utils.validation import ObjectField
+from target_salesforce.utils.transformation import transform_record
 
-
-@dataclass
-class BatchedRecords:
-    insert: List[dict] = field(default_factory=list)
-    update: List[dict] = field(default_factory=list)
-    upsert: List[dict] = field(default_factory=list)
-    delete: List[dict] = field(default_factory=list)
-    hard_delete: List[dict] = field(default_factory=list)
+from target_salesforce.utils.validation import validate_schema_field
 
 
 class SalesforceSink(BatchSink):
     """Salesforce target sink class."""
 
-    valid_actions = [field.name for field in fields(BatchedRecords)]
-    max_size = 2000
+    max_size = 5000
+    valid_actions = ["insert", "update", "delete", "hard_delete"]
+    include_sdc_metadata_properties = False
 
     def __init__(
         self,
@@ -38,13 +33,43 @@ class SalesforceSink(BatchSink):
         super().__init__(target, stream_name, schema, key_properties)
         self.target = target
         self._sf_client = None
-        self._batched_records: BatchedRecords
+        self._batched_records: List[Dict]
+        self._object_fields: Dict[str, ObjectField] = None
+        self._validate_schema_against_object()
 
     @property
     def sf_client(self):
         if self._sf_client:
             return self._sf_client
         return self._new_session()
+
+    @property
+    def object_fields(self) -> Dict[str, ObjectField]:
+        if self._object_fields:
+            return self._object_fields
+        object_fields = {}
+
+        stream_object = getattr(self.sf_client, self.stream_name)
+        for field in stream_object.describe().get("fields"):
+            object_fields[field.get("name")] = ObjectField(
+                field.get("type"),
+                field.get("createable"),
+                field.get("updateable"),
+            )
+
+        self._object_fields = object_fields
+        return self._object_fields
+
+    def _validate_schema_against_object(self):
+        for field in self.schema.get("properties").items():
+            try:
+                validate_schema_field(
+                    field, self.object_fields, self.config.get("action")
+                )
+            except InvalidStreamSchema as e:
+                raise InvalidStreamSchema(
+                    f"The incomming schema is incompatable with your {self.stream_name} object"
+                ) from e
 
     def _new_session(self):
         session_creds = SalesforceAuth.from_credentials(
@@ -56,52 +81,41 @@ class SalesforceSink(BatchSink):
 
     def start_batch(self, context: dict) -> None:
         self.logger.info(f"Starting new batch")
-        self._batched_records = BatchedRecords()
+        self._batched_records = []
 
     def process_record(self, record: dict, context: dict) -> None:
-        """Batch record based on the SF action"""
+        """Transform and batch record"""
 
-        action = record.get("_sdc_action", self.config.get("default_action")).lower()
-        if action not in self.valid_actions:
-            raise InvalidSalesforceAction(
-                f"Invalid record action {action} for record {record}"
-            )
+        processed_record = transform_record(record, self.object_fields)
 
-        record.pop("_sdc_action", None)
-
-        batch: List[dict] = getattr(self._batched_records, action)
-
-        batch.append(record)
+        self._batched_records.append(processed_record)
 
     def process_batch(self, context: dict) -> None:
         """Write out any prepped records and return once fully written."""
 
-        for action in self.valid_actions:
-            batched_data: List[dict] = getattr(self._batched_records, action)
-            if len(batched_data) == 0:
-                self.logger.info(f"Skipping batch {action} as there are no records")
-                continue
+        sf_object: bulk.SFBulkType = getattr(self.sf_client.bulk, self.stream_name)
 
-            sf_object: bulk.SFBulkType = getattr(self.sf_client.bulk, self.stream_name)
-
-            self._process_batch_by_action(sf_object, action, batched_data)
-            self.logger.info(
-                f"Completed {action} of {len(batched_data)} records to {self.stream_name}"
-            )
+        self._process_batch_by_action(
+            sf_object, self.config.get("action"), self._batched_records
+        )
+        self.logger.info(
+            f"Completed {self.config.get('action')} of {len(self._batched_records)} records to {self.stream_name}"
+        )
 
         # Refresh session to avoid timeouts.
         self._new_session()
 
-    def _process_batch_by_action(self, sf_object: bulk.SFBulkType, action, batched_data):
+    def _process_batch_by_action(
+        self, sf_object: bulk.SFBulkType, action, batched_data
+    ):
         """Handle upsert records different method"""
 
         sf_object_action = getattr(sf_object, action)
 
         try:
-            if action == "upsert":
-                sf_object_action(batched_data, "Id")
-            else:
-                sf_object_action(batched_data)
+            sf_object_action(batched_data)
         except exceptions.SalesforceMalformedRequest as e:
-            self.logger.error(f"Data in {action} {self.stream_name} batch does not conform to target SF {self.stream_name} Object or {self.stream_name} does not exist")
-            raise(e)
+            self.logger.error(
+                f"Data in {action} {self.stream_name} batch does not conform to target SF {self.stream_name} Object"
+            )
+            raise (e)

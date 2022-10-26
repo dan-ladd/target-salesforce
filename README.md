@@ -25,7 +25,7 @@ You must authenticate with OAuth (`client_id`, `client_secret`, and `refresh_tok
 | password            | False     | None    | User/password password |
 | security_token      | False     | None    | User/password generated security token. Reset under your Account Settings |
 | is_sandbox          | False     | False   | Is the Salesforce instance a sandbox |
-| default_action      | False     | upsert  | How to handle incomming records by default. Will be overriden if `_sdc_action` is included in the record. |
+| action              | False     | update  | How to handle incomming records by default (insert/update/delete/hard_delete) |
 
 A full list of supported settings and capabilities for this
 target is available by running:
@@ -40,10 +40,21 @@ target-salesforce --about
 
 ## Usage
 
-Incomming records must conform to your salesforce objects. Stream name should match the target Object (ex. Account) and no extra columns should be included other than the optional `_sdc_action` that dictates how records are written.
+Failure to ensure the following may result in incosistent results.
+1. Incoming records must conform to your salesforce objects. Extraneous fields are validated by the target, but data types are not.
+2. Stream name should match the target Object (ex. Account).
+3. Insert records should not contain `Id` or any fields that are not createable.
+4. Update records must contain `Id` or any fields that are not updateable.
+5. Delete/hard_delete records should only contain `Id`
+
+### General Workflow
+Here's a possible workflow on how to best use this tap in an Operational Analytics use case.
+1. tap-salesforce -> target-[DB]
+2. Transform/enrich data with dbt resulting in a clean table/view that matches the format of the Salesforce object.
+3. tap-[DB] -> target-salesforce
 
 ### Executing the Target Directly
-The following will insert an Account record from `input_example.jsonl` into your Salesforce instance.
+The following will insert an Account record from `input_example.jsonl` into your Salesforce instance. In your config, set `action=insert`.
 
 ```bash
 target-salesforce --version

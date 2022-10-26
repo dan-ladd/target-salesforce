@@ -33,6 +33,6 @@ plugins:
       - name: is_sandbox
         kind: boolean
         description: Is the Salesforce instance a sandbox?
-      - name: default_action
-        kind: boolean
-        description: How to handle incomming records by default. Will be overriden if `_sdc_action` is included in the record.
+      - name: action
+        kind: string
+        description: To insert/update/delete/hard_delete records.

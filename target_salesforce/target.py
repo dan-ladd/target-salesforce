@@ -20,6 +20,11 @@ class TargetSalesforce(Target):
         th.Property("password", th.StringType, secret=True),
         th.Property("security_token", th.StringType, secret=True),
         th.Property("is_sandbox", th.BooleanType, default=False),
-        th.Property("default_action", th.StringType, default="upsert"),
+        th.Property(
+            "action",
+            th.StringType,
+            default="update",
+            allowed_values=SalesforceSink.valid_actions,
+        ),
     ).to_dict()
     default_sink_class = SalesforceSink
