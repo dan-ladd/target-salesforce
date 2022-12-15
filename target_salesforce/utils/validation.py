@@ -1,7 +1,8 @@
 """Currently Validates the following:
     1. Field exists in the SF Object (excluding _sdc metadata)
     2. If the config action is update, that the field can be updated
-    3. If the config action is insert, that the field can be created"""
+    3. If the config action is insert, that the field can be created
+    4. If the config action is upsert, that the field can be created and updated"""
 
 
 from collections import namedtuple
@@ -22,25 +23,30 @@ def validate_schema_field(
     if field_name.startswith("_sdc_"):
         return
 
+    if field_name == "Id":
+        if action == "insert":
+            raise InvalidStreamSchema(
+                f"Id is not createable and should not be included on insert"
+            )
+        else:
+            return
+
     if not sf_field:
         raise InvalidStreamSchema(f"{field_name} does not exist in SF Object")
 
-    if action == "update":
-        if not sf_field.updateable and field_name != "Id":
+    if action in ["update", "upsert"]:
+        if not sf_field.updateable:
             raise InvalidStreamSchema(
                 f"{field_name} is not updatable for this SF Object, invalid for {action} action"
             )
 
-    if action == "insert":
+    if action in ["insert", "upsert"]:
         if not sf_field.createable:
             raise InvalidStreamSchema(
                 f"{field_name} is not creatable for this SF Object, invalid for {action} action"
             )
 
-    if action in ["delete", "hard_delete"] and field_name != "Id":
+    if action in ["delete", "hard_delete"]:
         raise InvalidStreamSchema(
             f"Schema for the {action} action should only include Id"
         )
-
-
-# TODO: Look into type validation, can quickly get complex with many possible restrictions in SF

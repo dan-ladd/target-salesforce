@@ -4,3 +4,7 @@ class InvalidSalesforceAction(Exception):
 
 class InvalidStreamSchema(Exception):
     pass
+
+
+class SalesforceApiError(Exception):
+    pass
