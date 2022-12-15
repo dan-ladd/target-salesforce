@@ -56,6 +56,10 @@ Here's a possible workflow on how to best use this tap in an Operational Analyti
 3. tap-[DB] -> target-salesforce
    - Consider using [inline stream maps](https://sdk.meltano.com/en/latest/stream_maps.html#customized-stream-map-behaviors) if you need to rename fields to match the SF Object
 
+### Troubleshooting
+You can inspect the result of bulk API load jobs via the following URL:
+[DOMAIN].lightning.force.com/lightning/setup/AsyncApiJobStatus/home
+
 ### Initialize your Development Environment
 
 ```bash
