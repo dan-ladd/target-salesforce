@@ -64,7 +64,7 @@ class SalesforceSink(BatchSink):
         for field in self.schema.get("properties").items():
             try:
                 validate_schema_field(
-                    field, self.object_fields, self.config.get("action")
+                    field, self.object_fields, self.config.get("action"), self.stream_name
                 )
             except InvalidStreamSchema as e:
                 raise InvalidStreamSchema(
@@ -113,10 +113,16 @@ class SalesforceSink(BatchSink):
 
         sf_object_action = getattr(sf_object, action)
 
-        if action == "upsert":
-            results = sf_object_action(batched_data, "Id")
-        else:
-            results = sf_object_action(batched_data)
+        try:
+            if action == "upsert":
+                results = sf_object_action(batched_data, "Id")
+            else:
+                results = sf_object_action(batched_data)
+        except exceptions.SalesforceMalformedRequest as e:
+            self.logger.error(
+                f"Data in {action} {self.stream_name} batch does not conform to target SF {self.stream_name} Object"
+            )
+            raise (e)
 
         return results
 

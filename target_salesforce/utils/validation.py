@@ -14,7 +14,7 @@ ObjectField = namedtuple("ObjectField", "type createable updateable")
 
 
 def validate_schema_field(
-    field: Dict, object_fields: Dict[str, ObjectField], action: str
+    field: Dict, object_fields: Dict[str, ObjectField], action: str, stream_name: str
 ):
     """Currently only validates that all incomming fields exist in the SF Object"""
     field_name, field_type = field
@@ -32,18 +32,18 @@ def validate_schema_field(
             return
 
     if not sf_field:
-        raise InvalidStreamSchema(f"{field_name} does not exist in SF Object")
+        raise InvalidStreamSchema(f"{field_name} does not exist in your {stream_name} Object")
 
     if action in ["update", "upsert"]:
         if not sf_field.updateable:
             raise InvalidStreamSchema(
-                f"{field_name} is not updatable for this SF Object, invalid for {action} action"
+                f"{field_name} is not updatable for your {stream_name} Object, invalid for {action} action"
             )
 
     if action in ["insert", "upsert"]:
         if not sf_field.createable:
             raise InvalidStreamSchema(
-                f"{field_name} is not creatable for this SF Object, invalid for {action} action"
+                f"{field_name} is not creatable for your {stream_name} Object, invalid for {action} action"
             )
 
     if action in ["delete", "hard_delete"]:
