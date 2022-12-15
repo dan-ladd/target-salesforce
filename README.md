@@ -25,7 +25,8 @@ You must authenticate with OAuth (`client_id`, `client_secret`, and `refresh_tok
 | password            | False     | None    | User/password password |
 | security_token      | False     | None    | User/password generated security token. Reset under your Account Settings |
 | is_sandbox          | False     | False   | Is the Salesforce instance a sandbox |
-| action              | False     | update  | How to handle incomming records by default (insert/update/delete/hard_delete) |
+| action              | False     | update  | How to handle incomming records by default (insert/update/upsert/delete/hard_delete) |
+| allow_failures      | False     | False   | Allows the target to continue persisting if a record fails to commit |
 
 A full list of supported settings and capabilities for this
 target is available by running:
@@ -41,17 +42,30 @@ target-salesforce --about
 ## Usage
 
 Failure to ensure the following may result in incosistent results.
-1. Incoming records must conform to your salesforce objects. Extraneous fields are validated by the target, but data types are not.
+1. Incoming records must conform to your salesforce objects. Field Names (Case Sensitive) are validated by the target, but data types are not.
 2. Stream name should match the target Object (ex. Account).
 3. Insert records should not contain `Id` or any fields that are not createable.
 4. Update records must contain `Id` or any fields that are not updateable.
-5. Delete/hard_delete records should only contain `Id`
+5. Upsert records must contain `Id` and all fields must be createable and updateable.
+6. Delete/hard_delete records should only contain `Id`
 
 ### General Workflow
 Here's a possible workflow on how to best use this tap in an Operational Analytics use case.
 1. tap-salesforce -> target-[DB]
 2. Transform/enrich data with dbt resulting in a clean table/view that matches the format of the Salesforce object.
 3. tap-[DB] -> target-salesforce
+   - Consider using [inline stream maps](https://sdk.meltano.com/en/latest/stream_maps.html#customized-stream-map-behaviors) if you need to rename fields to match the SF Object
+
+### Troubleshooting
+You can inspect the result of bulk API load jobs via the following URL:
+[DOMAIN].lightning.force.com/lightning/setup/AsyncApiJobStatus/home
+
+### Initialize your Development Environment
+
+```bash
+pipx install poetry
+poetry install
+```
 
 ### Executing the Target Directly
 The following will insert an Account record from `input_example.jsonl` into your Salesforce instance. In your config, set `action=insert`.
@@ -60,13 +74,6 @@ The following will insert an Account record from `input_example.jsonl` into your
 target-salesforce --version
 target-salesforce --help
 cat input_example.jsonl | target-salesforce --config /path/to/target-salesforce-config.json
-```
-
-### Initialize your Development Environment
-
-```bash
-pipx install poetry
-poetry install
 ```
 
 ### Create and Run Tests
@@ -85,9 +92,6 @@ poetry run target-salesforce --help
 ```
 
 ### Testing with [Meltano](https://meltano.com/)
-
-_**Note:** This target will work in any Singer environment and does not require Meltano.
-Examples here are for convenience and to streamline end-to-end orchestration scenarios._
 
 Your project comes with a custom `meltano.yml` project file already created. Open the `meltano.yml` and follow any _"TODO"_ items listed in
 the file.

@@ -8,7 +8,7 @@ from dataclasses import asdict
 from singer_sdk.sinks import BatchSink
 from simple_salesforce import Salesforce, bulk, exceptions
 from target_salesforce.session_credentials import parse_credentials, SalesforceAuth
-from target_salesforce.utils.exceptions import InvalidStreamSchema
+from target_salesforce.utils.exceptions import InvalidStreamSchema, SalesforceApiError
 from singer_sdk.plugin_base import PluginBase
 from target_salesforce.utils.validation import ObjectField
 from target_salesforce.utils.transformation import transform_record
@@ -20,7 +20,7 @@ class SalesforceSink(BatchSink):
     """Salesforce target sink class."""
 
     max_size = 5000
-    valid_actions = ["insert", "update", "delete", "hard_delete"]
+    valid_actions = ["insert", "update", "delete", "hard_delete", "upsert"]
     include_sdc_metadata_properties = False
 
     def __init__(
@@ -64,7 +64,7 @@ class SalesforceSink(BatchSink):
         for field in self.schema.get("properties").items():
             try:
                 validate_schema_field(
-                    field, self.object_fields, self.config.get("action")
+                    field, self.object_fields, self.config.get("action"), self.stream_name
                 )
             except InvalidStreamSchema as e:
                 raise InvalidStreamSchema(
@@ -95,11 +95,12 @@ class SalesforceSink(BatchSink):
 
         sf_object: bulk.SFBulkType = getattr(self.sf_client.bulk, self.stream_name)
 
-        self._process_batch_by_action(
+        results = self._process_batch_by_action(
             sf_object, self.config.get("action"), self._batched_records
         )
-        self.logger.info(
-            f"Completed {self.config.get('action')} of {len(self._batched_records)} records to {self.stream_name}"
+
+        self._validate_batch_result(
+            results, self.config.get("action"), self._batched_records
         )
 
         # Refresh session to avoid timeouts.
@@ -113,9 +114,36 @@ class SalesforceSink(BatchSink):
         sf_object_action = getattr(sf_object, action)
 
         try:
-            sf_object_action(batched_data)
+            if action == "upsert":
+                results = sf_object_action(batched_data, "Id")
+            else:
+                results = sf_object_action(batched_data)
         except exceptions.SalesforceMalformedRequest as e:
             self.logger.error(
                 f"Data in {action} {self.stream_name} batch does not conform to target SF {self.stream_name} Object"
             )
             raise (e)
+
+        return results
+
+    def _validate_batch_result(self, results: List[Dict], action, batched_records):
+        records_failed = 0
+        records_processed = 0
+
+        for i, result in enumerate(results):
+            if result.get("success"):
+                records_processed += 1
+            else:
+                records_failed += 1
+                self.logger.error(
+                    f"Failed {action} to to {self.stream_name}. Error: {result.get('errors')}. Record {batched_records[i]}"
+                )
+
+        self.logger.info(
+            f"{action} {records_processed}/{len(results)} to {self.stream_name}."
+        )
+
+        if records_failed > 0 and not self.config.get("allow_failures"):
+            raise SalesforceApiError(
+                f"{records_failed} error(s) in {action} batch commit to {self.stream_name}."
+            )

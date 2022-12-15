@@ -35,4 +35,7 @@ plugins:
         description: Is the Salesforce instance a sandbox?
       - name: action
         kind: string
-        description: To insert/update/delete/hard_delete records.
+        description: To insert/update/upsert/delete/hard_delete records.
+      - name: allow_failures
+        kind: boolean
+        description: Allows the target to continue persisting if a record fails to commit.
