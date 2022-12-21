@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "target-salesforce"
-version = "1.0.0"
+version = "1.1.0"
 description = "`target-salesforce` is a Singer target for Salesforce, built with the Meltano SDK for Singer Targets."
 authors = ["Dan Ladd"]
 keywords = [
@@ -12,7 +12,7 @@ license = "Apache 2.0"
 [tool.poetry.dependencies]
 python = "<3.11,>=3.7.1"
 requests = "^2.28.1"
-singer-sdk = "^0.15.0"
+singer-sdk = "^0.16.0"
 simple-salesforce = "^1.12.2"
 
 [tool.poetry.dev-dependencies]
