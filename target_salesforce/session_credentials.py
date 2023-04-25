@@ -37,18 +37,14 @@ def parse_credentials(config: dict) -> Union[OAuthCredentials, PasswordCredentia
 
 
 class SalesforceAuth(metaclass=abc.ABCMeta):
-    def __init__(self, credentials, is_sandbox=False):
-        self.is_sandbox = is_sandbox
+    def __init__(self, credentials, domain):
+        self.domain = domain
         self._credentials = credentials
 
     @abc.abstractmethod
     def login(self) -> Session:
         """Attempt to login and return Session info"""
         pass
-
-    @property
-    def instance_url(self):
-        return self._instance_url
 
     @classmethod
     def from_credentials(cls, credentials, **kwargs):
@@ -68,12 +64,7 @@ class SalesforceAuthOAuth(SalesforceAuth):
 
     @property
     def _login_url(self):
-        login_url = "https://login.salesforce.com/services/oauth2/token"
-
-        if self.is_sandbox:
-            login_url = "https://test.salesforce.com/services/oauth2/token"
-
-        return login_url
+        return f"https://{self.domain}.salesforce.com/services/oauth2/token"
 
     def login(self):
         try:
@@ -102,6 +93,6 @@ class SalesforceAuthOAuth(SalesforceAuth):
 class SalesforceAuthPassword(SalesforceAuth):
     def login(self):
         session_id, instance = SalesforceLogin(
-            sandbox=self.is_sandbox, **self._credentials._asdict()
+            domain=self.domain, **self._credentials._asdict()
         )
         return Session(session_id, instance=instance)
