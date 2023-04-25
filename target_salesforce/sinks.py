@@ -1,6 +1,5 @@
 """Salesforce target sink class, which handles writing streams."""
 
-import json
 from typing import Dict, List, Optional
 from dataclasses import asdict
 
@@ -74,7 +73,7 @@ class SalesforceSink(BatchSink):
     def _new_session(self):
         session_creds = SalesforceAuth.from_credentials(
             parse_credentials(self.target.config),
-            is_sandbox=self.target.config["is_sandbox"],
+            domain=self.target.config["domain"],
         ).login()
         self._sf_client = Salesforce(**asdict(session_creds))
         return self._sf_client

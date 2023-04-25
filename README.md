@@ -24,7 +24,7 @@ You must authenticate with OAuth (`client_id`, `client_secret`, and `refresh_tok
 | username            | False     | None    | User/password username |
 | password            | False     | None    | User/password password |
 | security_token      | False     | None    | User/password generated security token. Reset under your Account Settings |
-| is_sandbox          | False     | False   | Is the Salesforce instance a sandbox |
+| domain              | False     | login   | Your Salesforce instance domain. Use 'login' (default) or 'test' (sandbox), or Salesforce My domain. |
 | action              | False     | update  | How to handle incomming records by default (insert/update/upsert/delete/hard_delete) |
 | allow_failures      | False     | False   | Allows the target to continue persisting if a record fails to commit |
 
@@ -73,7 +73,7 @@ The following will insert an Account record from `input_example.jsonl` into your
 ```bash
 target-salesforce --version
 target-salesforce --help
-cat input_example.jsonl | target-salesforce --config /path/to/target-salesforce-config.json
+cat input_example.jsonl | target-salesforce --config .secrets/config.json
 ```
 
 ### Create and Run Tests

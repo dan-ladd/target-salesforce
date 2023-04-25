@@ -2,6 +2,7 @@
 
 from singer_sdk.target_base import Target
 from singer_sdk import typing as th
+from singer_sdk.exceptions import ConfigValidationError
 
 from target_salesforce.sinks import (
     SalesforceSink,
@@ -48,10 +49,15 @@ class TargetSalesforce(Target):
             description="User/password generated security token. Reset under your Account Settings",
         ),
         th.Property(
+            "domain",
+            th.StringType,
+            default="login",
+            description="Your Salesforce instance domain. Use 'login' (default) or 'test' (sandbox), or Salesforce My domain."
+        ),
+        th.Property(
             "is_sandbox",
             th.BooleanType,
-            default=False,
-            description="Is the Salesforce instance a sandbox",
+            description="DEPRECATED: Use domain. is_sandbox-False = 'login', is_sandbox-True = 'test'",
         ),
         th.Property(
             "action",
@@ -68,3 +74,9 @@ class TargetSalesforce(Target):
         ),
     ).to_dict()
     default_sink_class = SalesforceSink
+
+    def __init__(self, *, config= None, parse_env_config: bool = False, validate_config: bool = True) -> None:
+        super().__init__(config=config, parse_env_config=parse_env_config, validate_config=validate_config)
+        print(self.config.get("is_sandbox"))
+        if self.config.get("is_sandbox") is not None:
+            raise ConfigValidationError("is_sandbox has been deprecated, use domain. is_sandbox-False = 'login', is_sandbox-True = 'test'")
